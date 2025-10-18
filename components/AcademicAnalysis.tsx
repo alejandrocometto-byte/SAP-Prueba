@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Student } from '../types';
+import { Student, Unit } from '../types';
 import ChartContainer from './ChartContainer';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 interface AcademicAnalysisProps {
   students: Student[];
-  units: string[];
+  units: Unit[];
 }
 
 const getGradeColor = (grade: number) => {
@@ -16,7 +16,7 @@ const getGradeColor = (grade: number) => {
 };
 
 const AcademicAnalysis: React.FC<AcademicAnalysisProps> = ({ students, units }) => {
-  const [selectedUnit, setSelectedUnit] = useState<string>(units[0] || '');
+  const [selectedUnitName, setSelectedUnitName] = useState<string>(units[0]?.name || '');
 
   const performanceData = useMemo(() => {
     return students.map(student => {
@@ -32,17 +32,17 @@ const AcademicAnalysis: React.FC<AcademicAnalysisProps> = ({ students, units }) 
   }, [students]);
   
   const comparisonData = useMemo(() => {
-    if (students.length === 0) return [];
+    if (students.length === 0 || !selectedUnitName) return [];
     const historicalAverage = 75; // Mock historical average
     const currentAverage = students.reduce((sum, s) => {
-        const unitGrade = s.grades.find(g => g.unit === selectedUnit);
+        const unitGrade = s.grades.find(g => g.unit === selectedUnitName);
         return sum + (unitGrade?.grade || 0);
     }, 0) / students.length;
 
     return [
-        { name: selectedUnit, 'Promedio Actual': currentAverage, 'Promedio Histórico': historicalAverage }
+        { name: selectedUnitName, 'Promedio Actual': currentAverage, 'Promedio Histórico': historicalAverage }
     ];
-  }, [selectedUnit, students]);
+  }, [selectedUnitName, students]);
 
 
   return (
@@ -51,11 +51,11 @@ const AcademicAnalysis: React.FC<AcademicAnalysisProps> = ({ students, units }) 
         <label htmlFor="unit-filter" className="font-medium text-white">Unidad de Estudio:</label>
         <select
           id="unit-filter"
-          value={selectedUnit}
-          onChange={(e) => setSelectedUnit(e.target.value)}
+          value={selectedUnitName}
+          onChange={(e) => setSelectedUnitName(e.target.value)}
           className="appearance-none bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-electric-blue focus:border-electric-blue block w-full md:w-1/3 p-2.5"
         >
-          {units.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+          {units.map(unit => <option key={unit.id} value={unit.name}>{unit.name}</option>)}
         </select>
       </div>
 
@@ -67,7 +67,7 @@ const AcademicAnalysis: React.FC<AcademicAnalysisProps> = ({ students, units }) 
                         <thead className="text-xs text-gray-300 uppercase bg-gray-700 sticky top-0">
                             <tr>
                                 <th scope="col" className="p-3">Estudiante</th>
-                                {units.map(unit => <th key={unit} scope="col" className="p-3 text-center">{unit.replace('Unidad ', 'U')}</th>)}
+                                {units.map(unit => <th key={unit.id} scope="col" className="p-3 text-center">{unit.name.replace('Unidad ', 'U')}</th>)}
                             </tr>
                         </thead>
                         <tbody>
@@ -75,8 +75,8 @@ const AcademicAnalysis: React.FC<AcademicAnalysisProps> = ({ students, units }) 
                                 <tr key={studentData.name} className="border-b border-gray-700 hover:bg-gray-700">
                                     <td className="p-3 font-medium text-white whitespace-nowrap">{studentData.name}</td>
                                     {units.map(unit => (
-                                        <td key={unit} className={`p-3 text-center font-bold text-white ${getGradeColor(studentData[unit] ?? 0)}`}>
-                                            {studentData[unit] ?? 'N/A'}%
+                                        <td key={unit.id} className={`p-3 text-center font-bold text-white ${getGradeColor(studentData[unit.name] ?? 0)}`}>
+                                            {studentData[unit.name] ?? 'N/A'}%
                                         </td>
                                     ))}
                                 </tr>

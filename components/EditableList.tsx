@@ -12,17 +12,20 @@ interface EditableListProps {
   onAddItem: (name: string) => void;
   onUpdateItem: (id: number, newName: string) => void;
   onDeleteItem: (id: number) => void;
+  requestAuth: (action: () => void) => void;
 }
 
-const EditableList: React.FC<EditableListProps> = ({ title, items, onAddItem, onUpdateItem, onDeleteItem }) => {
+const EditableList: React.FC<EditableListProps> = ({ title, items, onAddItem, onUpdateItem, onDeleteItem, requestAuth }) => {
   const [newItemName, setNewItemName] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
 
   const handleAdd = () => {
     if (newItemName.trim()) {
-      onAddItem(newItemName.trim());
-      setNewItemName('');
+      requestAuth(() => {
+        onAddItem(newItemName.trim());
+        setNewItemName('');
+      });
     }
   };
   
@@ -38,15 +41,23 @@ const EditableList: React.FC<EditableListProps> = ({ title, items, onAddItem, on
   
   const handleUpdate = () => {
     if (editingId && editingName.trim()) {
-      onUpdateItem(editingId, editingName.trim());
-      cancelEditing();
+      requestAuth(() => {
+        onUpdateItem(editingId, editingName.trim());
+        cancelEditing();
+      });
     }
+  };
+
+  const handleDelete = (id: number) => {
+    requestAuth(() => {
+      onDeleteItem(id);
+    });
   };
 
   return (
     <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-full">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-      <div className="flex-grow overflow-y-auto pr-2">
+      <div className="flex-grow overflow-y-auto pr-2 min-h-[150px] max-h-[300px]">
         <ul className="space-y-2">
           {items.map(item => (
             <li key={item.id} className="flex items-center justify-between bg-gray-700 p-2 rounded-md">
@@ -55,11 +66,12 @@ const EditableList: React.FC<EditableListProps> = ({ title, items, onAddItem, on
                   type="text"
                   value={editingName}
                   onChange={(e) => setEditingName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleUpdate()}
                   className="bg-gray-600 text-white rounded px-2 py-1 w-full mr-2 focus:outline-none focus:ring-1 focus:ring-electric-blue"
                   autoFocus
                 />
               ) : (
-                <span className="text-gray-300">{item.name}</span>
+                <span className="text-gray-300 break-all">{item.name}</span>
               )}
 
               <div className="flex items-center space-x-2">
@@ -71,7 +83,7 @@ const EditableList: React.FC<EditableListProps> = ({ title, items, onAddItem, on
                 ) : (
                   <>
                     <button onClick={() => startEditing(item)} className="text-gray-400 hover:text-white"><Edit size={16} /></button>
-                    <button onClick={() => onDeleteItem(item.id)} className="text-coral-red hover:text-red-400"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(item.id)} className="text-coral-red hover:text-red-400"><Trash2 size={16} /></button>
                   </>
                 )}
               </div>

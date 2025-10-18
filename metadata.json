@@ -1,4 +1,5 @@
 {
   "name": "Student Performance Dashboard",
-  "description": "A modern, minimalist dashboard for real-time monitoring of student performance. Includes role-based access for administrators to manage students, courses, and academic periods, alongside detailed analytics."
+  "description": "An advanced dashboard for tracking student performance. Features on-demand authentication for administrative actions, full data editing capabilities, and a responsive design for both desktop and mobile. Viewable by anyone with the link, no login required for viewing.",
+  "requestFramePermissions": []
 }

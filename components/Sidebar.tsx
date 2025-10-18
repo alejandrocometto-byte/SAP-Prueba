@@ -1,65 +1,111 @@
-
 import React from 'react';
 import { Page } from '../types';
-import { LayoutDashboard, BarChart3, UserCircle, Settings } from 'lucide-react';
+import { BarChart3, BookOpen, User, Settings, X } from 'lucide-react';
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
+  hasSelectedStudent: boolean;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; }> = ({ icon, label, isActive, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center w-full px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-      isActive
-        ? 'bg-electric-blue text-white rounded-lg'
-        : 'text-gray-400 hover:bg-gray-700 hover:text-white rounded-lg'
-    }`}
-  >
-    {icon}
-    <span className="ml-4">{label}</span>
-  </button>
-);
+const NavItem: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}> = ({ icon, label, isActive, onClick, disabled }) => {
+  const baseClasses = "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200";
+  const activeClasses = "bg-electric-blue text-white";
+  const inactiveClasses = "text-gray-400 hover:bg-gray-700 hover:text-white";
+  const disabledClasses = "text-gray-600 cursor-not-allowed";
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
+  const getClasses = () => {
+    if (disabled) return `${baseClasses} ${disabledClasses}`;
+    if (isActive) return `${baseClasses} ${activeClasses}`;
+    return `${baseClasses} ${inactiveClasses}`;
+  };
+
+  const handleClick = () => {
+    if (!disabled) {
+      onClick();
+    }
+  };
+
   return (
-    <aside className="w-64 flex-shrink-0 bg-gray-800 p-4 flex flex-col justify-between">
-      <div>
-        <div className="flex items-center mb-10 px-2">
-          <BarChart3 size={32} className="text-electric-blue" />
-          <h1 className="text-xl font-bold text-white ml-3">AdminTrack</h1>
+    <li>
+      <button onClick={handleClick} disabled={disabled} className={`w-full text-left ${getClasses()}`}>
+        <span className="mr-3">{icon}</span>
+        {label}
+      </button>
+    </li>
+  );
+};
+
+
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, hasSelectedStudent, isOpen, onClose }) => {
+  const handleNavigate = (page: Page) => {
+    onNavigate(page);
+    onClose();
+  };
+  
+  const sidebarClasses = `
+    fixed inset-y-0 left-0 z-30 w-64 bg-gray-800 p-4 flex flex-col border-r border-gray-700
+    transform transition-transform duration-300 ease-in-out
+    md:relative md:translate-x-0
+    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+  `;
+
+  return (
+    <>
+      {isOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={onClose}></div>}
+      <aside className={sidebarClasses}>
+        <div className="flex items-center justify-between mb-8 px-2">
+          <div className="flex items-center">
+            <BarChart3 size={32} className="text-electric-blue mr-3" />
+            <h1 className="text-xl font-bold text-white">AdminTrack</h1>
+          </div>
+          <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white">
+            <X size={24}/>
+          </button>
         </div>
-        <nav className="space-y-2">
-          <NavItem
-            icon={<LayoutDashboard size={20} />}
-            label="Panorama Grupal"
-            isActive={currentPage === 'group'}
-            onClick={() => onNavigate('group')}
-          />
-          <NavItem
-            icon={<BarChart3 size={20} />}
-            label="Análisis Académico"
-            isActive={currentPage === 'academic'}
-            onClick={() => onNavigate('academic')}
-          />
-          <NavItem
-            icon={<UserCircle size={20} />}
-            label="Perfil Individual"
-            isActive={currentPage === 'profile'}
-            onClick={() => onNavigate('profile')}
-          />
+        <nav>
+          <ul className="space-y-2">
+            <NavItem
+              icon={<BarChart3 size={20} />}
+              label="Vista de Grupo"
+              isActive={currentPage === 'group'}
+              onClick={() => handleNavigate('group')}
+            />
+            <NavItem
+              icon={<BookOpen size={20} />}
+              label="Análisis Académico"
+              isActive={currentPage === 'academic'}
+              onClick={() => handleNavigate('academic')}
+            />
+            <NavItem
+              icon={<User size={20} />}
+              label="Perfil del Estudiante"
+              isActive={currentPage === 'profile'}
+              onClick={() => handleNavigate('profile')}
+              disabled={!hasSelectedStudent}
+            />
+          </ul>
         </nav>
-      </div>
-       <div className="mt-auto">
-         <NavItem
-            icon={<Settings size={20} />}
-            label="Configuración"
-            isActive={currentPage === 'admin'}
-            onClick={() => onNavigate('admin')}
-          />
-      </div>
-    </aside>
+        <div className="mt-auto">
+          <ul className="space-y-2">
+             <NavItem
+              icon={<Settings size={20} />}
+              label="Administración"
+              isActive={currentPage === 'admin'}
+              onClick={() => handleNavigate('admin')}
+            />
+          </ul>
+        </div>
+      </aside>
+    </>
   );
 };
 
