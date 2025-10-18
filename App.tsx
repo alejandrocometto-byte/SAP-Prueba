@@ -1,6 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Page, Student, Course, Period, Unit } from './types';
-import { INITIAL_STUDENTS, INITIAL_COURSES, INITIAL_PERIODS, INITIAL_UNITS } from './data/mockData';
+import React, { useState, useMemo, useCallback } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import GroupOverview from './components/GroupOverview';
@@ -8,143 +7,85 @@ import AcademicAnalysis from './components/AcademicAnalysis';
 import StudentProfile from './components/StudentProfile';
 import AdminPanel from './components/AdminPanel';
 import LoginModal from './components/LoginModal';
+import { Page, Student, Course, Period, Unit } from './types';
+import { INITIAL_STUDENTS, INITIAL_COURSES, INITIAL_PERIODS, INITIAL_UNITS, generateMockStudents } from './data/mockData';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('group');
-  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
-  
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
   const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
   const [periods, setPeriods] = useState<Period[]>(INITIAL_PERIODS);
   const [units, setUnits] = useState<Unit[]>(INITIAL_UNITS);
-  
-  const ADMIN_PASSWORD = 'admin123';
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
 
-  const handleLogin = (password: string) => {
-    if (password === ADMIN_PASSWORD) {
+  // Fix: Initialize GoogleGenAI instance. Assume process.env.API_KEY is available.
+  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY as string }), []);
+
+  const handleLogin = (password: string): boolean => {
+    // In a real app, this would be a proper authentication check.
+    if (password === 'admin123') {
       setIsAuthenticated(true);
       return true;
     }
     return false;
   };
 
+  const handleNavigate = (page: Page) => {
+    setCurrentPage(page);
+    setSelectedStudentId(null);
+  };
+
   const handleSelectStudent = (studentId: number) => {
     setSelectedStudentId(studentId);
     setCurrentPage('profile');
   };
+
+  const selectedStudent = useMemo(() => {
+    return students.find(s => s.id === selectedStudentId) || null;
+  }, [selectedStudentId, students]);
   
-  const handleNavigation = (page: Page) => {
-    if (page === 'profile' && selectedStudentId === null && students.length > 0) {
-      setSelectedStudentId(students[0].id);
-    }
-    setCurrentPage(page);
+  const resetData = useCallback(() => {
+    setStudents(generateMockStudents(20));
+  }, []);
+
+  if (!isAuthenticated) {
+    return <LoginModal onLogin={handleLogin} />;
   }
-  
-  // Admin CRUD functions
-  const addStudent = (student: Omit<Student, 'id' | 'avatar' | 'grades' | 'behavior'>) => {
-    const newStudent: Student = {
-      ...student,
-      id: Date.now(),
-      avatar: `https://i.pravatar.cc/150?u=${Date.now()}`,
-      attendance: 100,
-      grades: units.map(u => ({ unit: u.name, grade: 0, date: new Date().toISOString().split('T')[0] })), 
-      behavior: { participation: 3, punctuality: 3, initiative: 3, collaboration: 3, attendanceCompliance: 3 }
-    };
-    setStudents(prev => [...prev, newStudent]);
-  };
-  
-  const updateStudent = (updatedStudent: Student) => {
-    setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
-  };
-  
-  const deleteStudent = (studentId: number) => {
-    setStudents(prev => prev.filter(s => s.id !== studentId));
-    if (selectedStudentId === studentId) {
-        setSelectedStudentId(null);
-        setCurrentPage('group');
-    }
-  };
 
-  const addCourse = (name: string) => setCourses(prev => [...prev, { id: Date.now(), name }]);
-  const deleteCourse = (id: number) => setCourses(prev => prev.filter(c => c.id !== id));
-  
-  const addPeriod = (name: string) => setPeriods(prev => [...prev, { id: Date.now(), name }]);
-  const deletePeriod = (id: number) => setPeriods(prev => prev.filter(p => p.id !== id));
-
-  const addUnit = (name: string) => {
-    const newUnit = { id: Date.now(), name };
-    setUnits(prev => [...prev, newUnit]);
-    // Add a grade for this new unit to all existing students
-    setStudents(prev => prev.map(s => ({
-      ...s,
-      grades: [...s.grades, { unit: name, grade: 0, date: new Date().toISOString().split('T')[0] }]
-    })));
-  };
-
-  const updateUnit = (id: number, newName: string) => {
-    const oldUnit = units.find(u => u.id === id);
-    if (!oldUnit) return;
-
-    setUnits(prev => prev.map(u => (u.id === id ? { ...u, name: newName } : u)));
-    setStudents(prev => prev.map(s => ({
-      ...s,
-      grades: s.grades.map(g => (g.unit === oldUnit.name ? { ...g, unit: newName } : g))
-    })));
-  };
-
-  const deleteUnit = (id: number) => {
-    const unitToDelete = units.find(u => u.id === id);
-    if (!unitToDelete) return;
-
-    setUnits(prev => prev.filter(u => u.id !== id));
-    setStudents(prev => prev.map(s => ({
-      ...s,
-      grades: s.grades.filter(g => g.unit !== unitToDelete.name)
-    })));
-  };
-
-  const renderPage = () => {
+  const renderContent = () => {
     switch (currentPage) {
       case 'group':
         return <GroupOverview students={students} onSelectStudent={handleSelectStudent} />;
       case 'academic':
         return <AcademicAnalysis students={students} units={units.map(u => u.name)} />;
       case 'profile':
-        return <StudentProfile students={students} selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} onUpdateStudent={updateStudent} />;
-      case 'admin':
-        return <AdminPanel
-          students={students}
+        if (selectedStudent) {
+          return <StudentProfile student={selectedStudent} units={units.map(u => u.name)} ai={ai} />;
+        }
+        return <div className="text-white text-center p-10">Seleccione un estudiante para ver su perfil.</div>;
+       case 'admin':
+        return <AdminPanel 
           courses={courses}
+          setCourses={setCourses}
           periods={periods}
+          setPeriods={setPeriods}
           units={units}
-          onAddStudent={addStudent}
-          onUpdateStudent={updateStudent}
-          onDeleteStudent={deleteStudent}
-          onAddCourse={addCourse}
-          onDeleteCourse={deleteCourse}
-          onAddPeriod={addPeriod}
-          onDeletePeriod={deletePeriod}
-          onAddUnit={addUnit}
-          onUpdateUnit={updateUnit}
-          onDeleteUnit={deleteUnit}
+          setUnits={setUnits}
+          onResetData={resetData}
         />;
       default:
-        return <GroupOverview students={students} onSelectStudent={handleSelectStudent} />;
+        return null;
     }
   };
 
-  if (!isAuthenticated) {
-    return <LoginModal onLogin={handleLogin} />;
-  }
-
   return (
-    <div className="flex h-screen bg-gray-900 font-sans">
-      <Sidebar currentPage={currentPage} onNavigate={handleNavigation} />
+    <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
+      <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header courses={courses.map(c => c.name)} periods={periods.map(p => p.name)} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-4 md:p-8">
-          {renderPage()}
+        <main className="flex-1 overflow-y-auto p-8 bg-gray-900">
+          {renderContent()}
         </main>
       </div>
     </div>
